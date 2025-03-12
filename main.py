@@ -26,6 +26,7 @@ if __name__ == "__main__":
     download_video(video_url)"""
 
 import os
+import sys
 import threading
 import yt_dlp
 from kivy.app import App
@@ -33,21 +34,36 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.label import Label
+from kivy.core.window import Window
 from kivy.uix.progressbar import ProgressBar
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.recycleview import RecycleView
-from kivy.core.window import Window
 from kivy.uix.filechooser import FileChooserListView
 
-# Ajuste de cor de fundo para o aplicativo
-Window.clearcolor = (0.1, 0.1, 0.1, 1)  # Cor de fundo mais escura
+# Verifique se estamos no Android antes de tentar usar android.permissions
+if 'android' in sys.modules:
+    from android.permissions import request_permissions, Permission
+    def request_storage_permissions():
+        request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
+    import os
+
+    def get_download_directory():
+        download_dir = '/sdcard/VideoDown/'
+        # Verifica se o diretório existe, caso contrário, cria
+        if not os.path.exists(download_dir):
+            os.makedirs(download_dir)
+        return download_dir
+
+else:
+    def request_storage_permissions():
+        pass  # Não faz nada no desktop
+    def get_download_directory():
+        return os.path.expanduser('~')  # Diretório padrão no desktop
 
 # Função para baixar o vídeo ou o áudio
 def download_media(url, is_audio, progress_callback, completion_callback, filename_callback):
     ydl_opts = {
         'format': 'bestaudio/best' if is_audio else 'best',  # Baixa o melhor formato de áudio ou vídeo
-        'outtmpl': '%(title)s.%(ext)s',  # Nome do arquivo de saída será o título do vídeo
+        'outtmpl': os.path.join(get_download_directory(), '%(title)s.%(ext)s'),  # Define o diretório de download
         'progress_hooks': [progress_callback],  # Atualiza o progresso
     }
 
@@ -64,24 +80,28 @@ def download_media(url, is_audio, progress_callback, completion_callback, filena
         completion_callback(f"Erro: {e}")
 
 # Tela para inserir a URL e baixar o conteúdo (vídeo ou áudio)
+from kivy.uix.widget import Widget
+
+from kivy.uix.widget import Widget
+
 class DownloadScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20) #Widget principalmae do aplicativo onde todos os outros ficam
+        self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20)  # Widget principal do aplicativo
 
         # Cabeçalho com título
-        header_layout = BoxLayout(size_hint_y=None, height=100)
-        header_label = Label(text='Baixar Conteúdo', font_size=30, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 100))
+        header_layout = BoxLayout(size_hint_y=None, height=40)
+        header_label = Label(text='Download Center', font_size=25, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 40))
         header_layout.add_widget(header_label)
         self.layout.add_widget(header_layout)
 
         # Campo para inserir a URL do conteúdo
-        self.url_input = TextInput(hint_text="Cole a URL do conteúdo", size_hint_y=None, height=40, background_normal='', background_active='', foreground_color=(0, 0, 0, 1), font_size=18)
+        self.url_input = TextInput(hint_text="Paste URL/cole o link do video", size_hint_y=None, height=40, background_normal='', background_active='', foreground_color=(0, 0, 0, 1), font_size=18)
         self.layout.add_widget(self.url_input)
 
         # Label para exibir mensagens
-        self.message_label = Label(text="Aguardando URL", size_hint_y=None, height=40, color=(0.8, 0.8, 0.8, 1))
+        self.message_label = Label(text="Waiting URL", size_hint_y=None, height=40, color=(0.8, 0.8, 0.8, 1))
         self.layout.add_widget(self.message_label)
 
         # Barra de progresso
@@ -90,11 +110,11 @@ class DownloadScreen(Screen):
 
         # Botões "Baixar Vídeo" e "Baixar Áudio"
         buttons_layout = BoxLayout(size_hint_y=None, height=50, spacing=20)  # Layout horizontal para os botões
-        self.download_video_button = Button(text="Baixar Vídeo", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
+        self.download_video_button = Button(text="Download Vídeo", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
         self.download_video_button.bind(on_press=self.start_video_download)
         buttons_layout.add_widget(self.download_video_button)
 
-        self.download_audio_button = Button(text="Baixar Áudio", background_normal='', background_color=(0.3, 0.8, 0.3, 1), color=(1, 1, 1, 1), font_size=18)
+        self.download_audio_button = Button(text="Download Áudio", background_normal='', background_color=(0.3, 0.8, 0.3, 1), color=(1, 1, 1, 1), font_size=18)
         self.download_audio_button.bind(on_press=self.start_audio_download)
         buttons_layout.add_widget(self.download_audio_button)
 
@@ -102,25 +122,29 @@ class DownloadScreen(Screen):
 
         # Botões "Sobre" e "Ver Downloads" na mesma linha
         info_buttons_layout = BoxLayout(size_hint_y=None, height=50, spacing=20)  # Layout horizontal para os botões
-        self.view_downloads_button = Button(text="Ver Downloads", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
+        self.view_downloads_button = Button(text="Files", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
         self.view_downloads_button.bind(on_press=self.show_downloads)
         info_buttons_layout.add_widget(self.view_downloads_button)
 
-        self.about_button = Button(text="Sobre", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
+        self.about_button = Button(text="About", background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
         self.about_button.bind(on_press=self.show_about_screen)
         info_buttons_layout.add_widget(self.about_button)
 
         self.layout.add_widget(info_buttons_layout)
+
+        # Adicionando um Widget vazio que ocupará 50% ou 60% da altura
+        # Ajustando o size_hint_y para 0.6 para ocupar 60% do espaço disponível
+        self.layout.add_widget(Widget(size_hint_y=0.4))  # 40% para os widgets
 
         self.add_widget(self.layout)
 
     def start_video_download(self, instance):
         url = self.url_input.text
         if not url:
-            self.message_label.text = "URL inválida!"
+            self.message_label.text = "Invalid URL"
             return
 
-        self.message_label.text = f"Iniciando o download do vídeo: {url}"
+        self.message_label.text = f"Starting download vídeo: {url}"
 
         # Iniciar o download em uma thread separada para vídeo
         download_thread = threading.Thread(target=download_media, args=(url, False, self.update_progress, self.on_download_complete, self.add_downloaded_file))
@@ -129,10 +153,10 @@ class DownloadScreen(Screen):
     def start_audio_download(self, instance):
         url = self.url_input.text
         if not url:
-            self.message_label.text = "URL inválida!"
+            self.message_label.text = "Invalid URL"
             return
 
-        self.message_label.text = f"Iniciando o download do áudio: {url}"
+        self.message_label.text = f"Starting download audio: {url}"
 
         # Iniciar o download em uma thread separada para áudio
         download_thread = threading.Thread(target=download_media, args=(url, True, self.update_progress, self.on_download_complete, self.add_downloaded_file))
@@ -147,7 +171,7 @@ class DownloadScreen(Screen):
                 progress = (downloaded / total) * 100
                 self.progress_bar.value = progress
             else:
-                self.message_label.text = "Preparando o download..."
+                self.message_label.text = "Preparing download..."
 
     def on_download_complete(self, message):
         self.message_label.text = message
@@ -165,6 +189,7 @@ class DownloadScreen(Screen):
         # Troca para a tela de informações sobre o app
         self.manager.current = "about"
 
+
 # Tela para visualizar os downloads feitos (Agora um explorador de arquivos)
 class DownloadsScreen(Screen):
     def __init__(self, **kwargs):
@@ -172,7 +197,7 @@ class DownloadsScreen(Screen):
         self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
         # Cabeçalho
-        header_label = Label(text="Explorador de Downloads", font_size=30, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 100))
+        header_label = Label(text="Files Explorer", font_size=30, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 100))
         self.layout.add_widget(header_label)
 
         # FileChooser para visualizar e navegar pelos arquivos
@@ -180,7 +205,7 @@ class DownloadsScreen(Screen):
         self.layout.add_widget(self.file_chooser)
 
         # Botão para voltar à tela de download
-        self.back_button = Button(text="Voltar", size_hint_y=None, height=50, background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
+        self.back_button = Button(text="Back", size_hint_y=None, height=50, background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
         self.back_button.bind(on_press=self.go_back)
         self.layout.add_widget(self.back_button)
 
@@ -197,14 +222,14 @@ class AboutScreen(Screen):
         self.layout = BoxLayout(orientation='vertical', padding=20, spacing=20)
 
         # Cabeçalho
-        header_label = Label(text="Sobre o App", font_size=30, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 100))
+        header_label = Label(text="About the App", font_size=30, bold=True, color=(1, 1, 1, 1), size_hint=(None, None), size=(200, 100))
         self.layout.add_widget(header_label)
 
         # Informações sobre a versão e o programador
-        version_label = Label(text="Versão: 1.0.0", font_size=20, color=(1, 1, 1, 1))
+        version_label = Label(text="Version: 1.0.0", font_size=20, color=(1, 1, 1, 1))
         self.layout.add_widget(version_label)
 
-        developer_label = Label(text="Programador: Oscar Namicano", font_size=20, color=(1, 1, 1, 1))
+        developer_label = Label(text="Programmer: Oscar Namicano", font_size=20, color=(1, 1, 1, 1))
         self.layout.add_widget(developer_label)
 
         # Adicionar política de uso e advertência sobre conteúdo protegido por direitos autorais
@@ -220,7 +245,7 @@ class AboutScreen(Screen):
         self.layout.add_widget(legal_warning)
 
         # Botão para voltar à tela anterior
-        back_button = Button(text="Voltar", size_hint_y=None, height=50, background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
+        back_button = Button(text="Back", size_hint_y=None, height=50, background_normal='', background_color=(0.3, 0.5, 0.8, 1), color=(1, 1, 1, 1), font_size=18)
         back_button.bind(on_press=self.go_back)
         self.layout.add_widget(back_button)
 
