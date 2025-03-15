@@ -26,6 +26,7 @@ if __name__ == "__main__":
     download_video(video_url)"""
 
 import os
+from kivy import platform
 import sys
 import threading
 import yt_dlp
@@ -41,15 +42,18 @@ from kivy.uix.filechooser import FileChooserListView
 
 # Verifique se estamos no Android antes de tentar usar android.permissions
 if 'android' in sys.modules:
-    from android.permissions import request_permissions, Permission
+    from android.permissions import request_permissions, Permission, check_permission
+    from android.storage import primary_external_storage_path
+
     def request_storage_permissions():
         request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
     import os
 
     def get_download_directory():
-        download_dir = '/sdcard/VideoDown/'
+        download_dir = f'{str(primary_external_storage_path())}/Youtube Downloader/'
         # Verifica se o diretório existe, caso contrário, cria
         if not os.path.exists(download_dir):
+            request_storage_permissions()
             os.makedirs(download_dir)
         return download_dir
 
@@ -57,7 +61,10 @@ else:
     def request_storage_permissions():
         pass  # Não faz nada no desktop
     def get_download_directory():
+        p = os.path.expanduser('~')
+        print(p)
         return os.path.expanduser('~')  # Diretório padrão no desktop
+        
 
 # Função para baixar o vídeo ou o áudio
 def download_media(url, is_audio, progress_callback, completion_callback, filename_callback):
@@ -70,6 +77,7 @@ def download_media(url, is_audio, progress_callback, completion_callback, filena
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             print(f"Iniciando o download {'áudio' if is_audio else 'vídeo'}: {url}")
+            request_storage_permissions()
             result = ydl.download([url])  # Baixar o conteúdo da URL
             filename = ydl.prepare_filename(ydl.extract_info(url))
             print(f"Download concluído com sucesso! Arquivo salvo como: {filename}")
@@ -201,6 +209,7 @@ class DownloadsScreen(Screen):
         self.layout.add_widget(header_label)
 
         # FileChooser para visualizar e navegar pelos arquivos
+        request_storage_permissions()
         self.file_chooser = FileChooserListView(size_hint=(1, None), height=Window.height - 150)
         self.layout.add_widget(self.file_chooser)
 
@@ -260,6 +269,15 @@ class DownloadApp(App):
         self.downloaded_files = []  # Lista para armazenar os arquivos baixados
         self.screen_manager = ScreenManager()
 
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+
+            request_permissions(
+                [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
+            )
+
+        
+
         # Adiciona as telas ao ScreenManager
         self.download_screen = DownloadScreen(name="download")
         self.downloads_screen = DownloadsScreen(name="downloads")
@@ -270,6 +288,13 @@ class DownloadApp(App):
         self.screen_manager.add_widget(self.about_screen)
 
         return self.screen_manager
+    def on_start(self):
+        if platform == 'android':
+            if not check_permission(Permission.WRITE_EXTERNAL_STORAGE):
+                print("###########################################")
+                print("##  PROHIBIDED  ##")
+                print("###########################################")
+                request_permissions([Permission.WRITE_EXTERNAL_STORAGE, Permission.READ_EXTERNAL_STORAGE])
 
 if __name__ == '__main__':
     DownloadApp().run()
