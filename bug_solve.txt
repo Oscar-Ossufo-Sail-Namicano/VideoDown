@@ -1,0 +1,75 @@
+You have requested merging of multiple formats but ffmpeg is not
+installed. Aborting due to --abort-on-error
+
+Solution: 
+###################################### On Windows ###################################################
+Download FFmpeg ZIP:
+https://www.gyan.dev/ffmpeg/builds/
+
+Extract it, e.g., to C:\ffmpeg
+
+Add C:\ffmpeg\bin to your system PATH:
+
+Start menu → Search “Environment Variables”
+
+Edit “Path” → Add C:\ffmpeg\bin
+
+Restart your computer (or at least your terminal)
+
+Test in terminal:ffmpeg -version
+
+################################On Linux (Debian/Ubuntu):###########################################
+sudo apt update
+sudo apt install ffmpeg
+
+######################################## On macOS: #################################################
+brew install ffmpeg
+(Assumes you have Homebrew installed.)
+
+######################### Bundle ffmpeg to the app #################################################
+Option 1: Bundle ffmpeg with your app (Recommended for portability)
+Step-by-step:
+
+1. Download ffmpeg executable
+
+	Go to https://www.gyan.dev/ffmpeg/builds/
+
+	Download a static build (e.g., ffmpeg-release-essentials.zip)
+
+	Extract it and grab ffmpeg.exe from the bin folder.
+
+2. Place ffmpeg.exe in your project folder Example folder structure:
+
+your_project/
+	├── main.py
+	├── ffmpeg.exe
+	└── ...
+
+3. Update your code to point to bundled ffmpeg.exe Tell yt_dlp where ffmpeg is:
+
+import yt_dlp
+import os
+import sys
+
+# Get path to ffmpeg relative to the executable or script
+if getattr(sys, 'frozen', False):
+    ffmpeg_path = os.path.join(sys._MEIPASS, 'ffmpeg.exe')
+else:
+    ffmpeg_path = os.path.abspath('ffmpeg.exe')
+
+ydl_opts = {
+    'format': 'bestvideo+bestaudio/best',
+    'ffmpeg_location': ffmpeg_path,
+    'outtmpl': 'downloads/%(title)s.%(ext)s'
+}
+
+$. Modify PyInstaller spec or command Include the ffmpeg binary using --add-binary:
+
+	pyinstaller main.py --add-binary "ffmpeg.exe;."
+
+Or, in your .spec file:
+
+a = Analysis(...,
+    binaries=[('ffmpeg.exe', '.')],
+    ...
+)

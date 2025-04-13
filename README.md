@@ -1,8 +1,9 @@
 #  VideoDown: Seus Vídeos Favoritos do YouTube Offline! 
 
-**Leve a Magia do YouTube para Onde Quiser!**
+**Leve a Magia do YouTube para Onde Quiser! A VERSAO PARA PC ESTAA DISPONIVEL**
 
 Cansado de depender de internet para assistir seus vídeos favoritos do YouTube? Com o VideoDown, você baixa vídeos e áudios com facilidade e rapidez, diretamente para o seu dispositivo!
+
 
 ## ✨ Funcionalidades Incríveis ✨
 
